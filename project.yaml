@@ -1,0 +1,112 @@
+specVersion: 1.0.0
+name: commune-indexer
+version: 0.0.1
+runner:
+  node:
+    name: "@subql/node"
+    version: "*"
+  query:
+    name: "@subql/query"
+    version: "*"
+description: Subquery Indexer for Commune's Subspace
+schema:
+  file: ./schema.graphql
+network:
+  # The genesis hash of the network (hash of block 0)
+  chainId: "0xbc6eb9753e2417476601485f9f8ef8474701ec199d456f989bd397682c9425c5"
+  # This endpoint must be a public non-pruned archive node
+  # Public nodes may be rate limited, which can affect indexing speed
+  # When developing your project we suggest getting a private API key
+  # You can get them from OnFinality for free https://app.onfinality.io
+  # https://documentation.onfinality.io/support/the-enhanced-api-service
+  endpoint: wss://node-7165630346769203200.hk.onfinality.io/ws?apikey=bb554628-d8f3-41a7-aae4-81ac78751d01
+  # Optionally provide the HTTP endpoint of a full chain dictionary to speed up processing
+  dictionary: https://api.subquery.network/sq/CommuneExplorer/commune-dictionary
+  chaintypes:
+    file: ./dist/chaintypes.js
+dataSources:
+  - kind: substrate/Runtime
+    startBlock: 1
+    endBlock: 1
+    mapping:
+      file: ./dist/index.js
+      handlers:
+        - handler: handleGenesisData
+          kind: substrate/BlockHandler
+  - kind: substrate/Runtime
+    startBlock: 2
+    mapping:
+      file: ./dist/index.js
+      handlers:
+        # Transfers
+        - handler: handleTransfer
+          kind: substrate/EventHandler
+          filter:
+            module: balances
+            method: Transfer
+        # Subnets
+        - handler: handleNetworkAdded
+          kind: substrate/EventHandler
+          filter:
+            module: subspaceModule
+            method: NetworkAdded
+        - handler: handleNetworkRemoved
+          kind: substrate/EventHandler
+          filter:
+            module: subspaceModule
+            method: NetworkRemoved
+        # Modules
+        - handler: handleModuleAdded
+          kind: substrate/EventHandler
+          filter:
+            module: subspaceModule
+            method: ModuleRegistered
+        # Weights
+        - handler: handleWeightsSet
+          kind: substrate/EventHandler
+          filter:
+            module: subspaceModule
+            method: WeightsSet
+        # Delegation
+        - handler: handleStakeAdded
+          kind: substrate/EventHandler
+          filter:
+            module: subspaceModule
+            method: StakeAdded
+        - handler: handleStakeRemoved
+          kind: substrate/EventHandler
+          filter:
+            module: subspaceModule
+            method: StakeRemoved
+        # fetch the staked amount every hour
+        - handler: syncStakedAmount
+          kind: substrate/BlockHandler
+          filter:
+            modulo: 450
+
+        # Global parameters
+        - handler: handleGlobalParametersUpdated
+          kind: substrate/EventHandler
+          filter:
+            module: subspaceModule
+            method: GlobalParamsUpdated
+
+        # Subnet burns
+        - handler: fetchSubnetBurns
+          kind: substrate/BlockHandler
+          filter:
+            modulo: 432
+        # Sync Bonds
+        - handler: fetchBonds
+          kind: substrate/BlockHandler
+          filter:
+            modulo: 300
+        - handler: handleSubnetParamsUpdated
+          kind: substrate/EventHandler
+          filter:
+            module: subspaceModule
+            method: SubnetParamsUpdated
+        - handler: fetchAllConsensusVars
+          kind: substrate/BlockHandler
+          filter:
+            modulo: 150
