@@ -1,0 +1,176 @@
+type Transfer @entity {
+  id: ID!
+
+  from: String! @index
+  to: String! @index
+  amount: BigInt! @index
+
+  blockNumber: BigInt! @index
+  extrinsicId: Int! @index
+}
+
+type Subnet @entity {
+  id: ID!
+
+  netUid: Int! @index
+  registeredAt: Int! @index
+  timestamp: Date! @index
+  extrinsicId: Int!
+  name: String! @index
+}
+
+type Module @entity {
+  id: ID!
+
+  netUid: Int! @index
+  uid: Int! @index
+  key: String! @index
+
+  registeredAt: Int! @index
+  timestamp: Date! @index
+  extrinsicId: Int!
+
+  address: String! @index
+  name: String! @index
+}
+
+type Weight @entity {
+  id: ID!
+
+  netUid: Int! @index
+  uid: Int! @index
+  weights: String!
+  height: Int! @index
+}
+
+enum DelegateAction {
+  DELEGATE
+  UNDELEGATE
+}
+
+type DelegationEvent @entity {
+  id: ID!
+
+  height: Int! @index
+  extrinsicId: Int!
+  netUid: Int! @index
+  account: String!
+  module: String! @index
+  amount: BigInt! @index
+  action: DelegateAction!
+}
+
+type DelegateBalance @entity {
+  id: ID!
+
+  netUid: Int! @index
+  lastUpdate: Int! @index
+  account: String!
+  module: String! @index
+  amount: BigInt! @index
+}
+
+type GlobalParams @entity {
+  id: ID!
+
+  lastUpdate: Int!
+  timestamp: Date!
+
+  burn_rate: Int!
+  max_name_length: Int!
+  min_name_length: Int!
+  max_allowed_subnets: Int!
+  max_allowed_modules: Int!
+  max_registrations_per_block: Int!
+  max_allowed_weights: Int!
+  min_burn: BigInt!
+  max_burn: BigInt!
+  min_stake: BigInt!
+  floor_delegation_fee: Int! # percent, integer between 0 and 100
+  min_weight_stake: BigInt!
+  target_registrations_per_interval: Int!
+  target_registrations_interval: Int!
+  adjustment_alpha: BigInt!
+  unit_emission: BigInt!
+  curator: String!
+  subnet_stake_threshold: Int! # percent, integer between 0 and 100
+  proposal_cost: BigInt!
+  proposal_expiration: Int!
+  proposal_participation_threshold: Int! # percent
+  general_subnet_application_cost: BigInt!
+  floor_founder_share: Int!
+}
+
+type SubnetParams @entity {
+  id: ID!
+
+  netUid: Int! @index
+  lastUpdate: Int!
+
+  founder: String!
+  founder_share: Int!
+  immunity_period: Int!
+  incentive_ratio: Int!
+  max_allowed_uids: Int!
+  max_allowed_weights: Int!
+  min_allowed_weights: Int!
+  max_weight_age: BigInt!
+  min_stake: BigInt!
+  name: String!
+  tempo: Int!
+  trust_ratio: Int!
+  maximum_set_weight_calls_per_epoch: Int!
+  vote_mode: String!
+  bonds_ma: BigInt!
+}
+
+type SubnetBurn @entity {
+  id: ID!
+
+  netUid: Int! @index
+  lastUpate: Int!
+
+  burn: BigInt!
+}
+
+type SubnetConsensus @entity {
+  id: ID!
+
+  netUid: Int! @index
+
+  incentive: String!
+  dividends: String!
+  emission: String!
+  lastUpdate: String!
+}
+
+type LegitWhitelist @entity {
+  id: ID!
+
+  account: String!
+  weight: Int!
+}
+
+type NeuronBond @entity {
+  id: ID!
+
+  lastUpdate: Int!
+
+  netUid: Int! @index
+  uid: Int! @index
+  value: String!
+}
+
+### Account balances
+type Account @entity {
+  id: ID!
+
+  address: String! @index
+
+  createdAt: BigInt! @index
+  updatedAt: BigInt! @index
+
+  balance_free: BigInt! @index
+  balance_staked: BigInt! @index
+  balance_total: BigInt! @index
+}
