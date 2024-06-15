@@ -114,6 +114,7 @@ type SubnetParams @entity {
   max_allowed_uids: Int!
   max_allowed_weights: Int!
   min_allowed_weights: Int!
+  max_stake: BigInt!
   max_weight_age: BigInt!
   min_stake: BigInt!
   name: String!
