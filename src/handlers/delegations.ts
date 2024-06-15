@@ -4,10 +4,8 @@ import {
   DelegateAction,
   DelegateBalance,
   DelegationEvent,
-} from "../types"; 
+} from "../types";
 import { ZERO } from "../utils/consts";
-// import { DelegateAction } from "../types/enums";
-// import { Account, DelegateBalance, DelegationEvent } from "../types/models";
 
 export async function handleStakeAdded(event: SubstrateEvent): Promise<void> {
   await handleDelegation(event, DelegateAction.DELEGATE);
