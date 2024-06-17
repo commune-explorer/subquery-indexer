@@ -20,6 +20,7 @@ export class SubnetParams implements Entity {
         max_allowed_uids: number,
         max_allowed_weights: number,
         min_allowed_weights: number,
+        max_stake: bigint,
         max_weight_age: bigint,
         min_stake: bigint,
         name: string,
@@ -39,6 +40,7 @@ export class SubnetParams implements Entity {
         this.max_allowed_uids = max_allowed_uids;
         this.max_allowed_weights = max_allowed_weights;
         this.min_allowed_weights = min_allowed_weights;
+        this.max_stake = max_stake;
         this.max_weight_age = max_weight_age;
         this.min_stake = min_stake;
         this.name = name;
@@ -60,6 +62,7 @@ export class SubnetParams implements Entity {
     public max_allowed_uids: number;
     public max_allowed_weights: number;
     public min_allowed_weights: number;
+    public max_stake: bigint;
     public max_weight_age: bigint;
     public min_stake: bigint;
     public name: string;
@@ -124,6 +127,7 @@ export class SubnetParams implements Entity {
             record.max_allowed_uids,
             record.max_allowed_weights,
             record.min_allowed_weights,
+            record.max_stake,
             record.max_weight_age,
             record.min_stake,
             record.name,
