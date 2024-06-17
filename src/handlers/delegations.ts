@@ -132,20 +132,51 @@ export async function syncStakedAmount(block: SubstrateBlock): Promise<void> {
     }
   }
 
+  await removeAllDelegationRecords();
+  await store.bulkUpdate("DelegateBalance", records);
+
   const accounts = Object.keys(userStakes);
   let entities = await store.getByFields<Account>("Account", [
     ["address", "in", accounts],
   ]);
 
-  for (let i = 0; i < entities.length; ++i) {
-    let entity = entities[i];
-    const { address } = entity;
-    entity.balance_staked = userStakes[address];
-    entity.balance_total = entity.balance_free + entity.balance_staked;
-    entity.updatedAt = BigInt(height);
+  // Create a map of entities indexed by their address
+  const entityMap = new Map<string, Account>();
+  entities.forEach((entity) => {
+    entityMap.set(entity.address, entity);
+  });
+
+  const newEntities: Account[] = [];
+  const updatedEntities: Account[] = [];
+
+  for (const [address, stake] of Object.entries(userStakes)) {
+    let entity = entityMap.get(address);
+    if (entity) {
+      entity.balance_staked = stake;
+      entity.balance_total = entity.balance_free + entity.balance_staked;
+      entity.updatedAt = BigInt(height);
+      updatedEntities.push(entity);
+    } else {
+      // Create new entity if it doesn't exist
+      entity = new Account(
+        address,
+        address,
+        BigInt(height),
+        BigInt(height),
+        BigInt(0),
+        stake,
+        stake
+      );
+      newEntities.push(entity);
+      entityMap.set(address, entity);
+    }
   }
 
-  await removeAllDelegationRecords();
-  await store.bulkUpdate("DelegateBalance", records);
-  await store.bulkUpdate("Account", entities);
+  // Use bulkCreate for new entities and bulkUpdate for modified entities
+  if (newEntities.length > 0) {
+    await store.bulkCreate("Account", newEntities);
+  }
+  if (updatedEntities.length > 0) {
+    await store.bulkUpdate("Account", updatedEntities);
+  }
 }
