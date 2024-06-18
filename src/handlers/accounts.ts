@@ -38,43 +38,69 @@ export async function updateAccountList(block: SubstrateBlock): Promise<void> {
 
   const apiAt = await unsafeApi?.at(hash);
 
-  if (!apiAt) return;
-  const accountEntities: Array<Account> = [];
-
-  const start = Date.now();
-
-  let offset = 0;
-  while (true) {
-    let records = await store.getByFields<Account>(
-      "Account",
-      [["address", "!=", ""]],
-      { offset }
-    );
-    const len = records.length;
-    logger.info(`offset = ${offset} fetched ${len} account records`);
-    if (len === 0) break;
-    const addresses = records.map((item) => item.address);
-    const ts = Date.now();
-    const accountsData = await apiAt.query.system.account.multi(addresses);
-    logger.info(`fetching account balances took ${Date.now() - ts}ms`);
-    for (let i = 0; i < records.length; ++i) {
-      let record = records[i];
-      const {
-        data: { free },
-      } = accountsData[i].toJSON() as any;
-      const balance_free = BigInt(free);
-      if (record.balance_free === balance_free) continue;
-      record.balance_free = balance_free;
-      record.balance_total = record.balance_staked + balance_free;
-      record.updatedAt = height;
-      accountEntities.push(record);
-    }
-    offset += len;
+  if (!apiAt) {
+    logger.error("Failed to get API at the given block hash");
+    return;
   }
 
-  await store.bulkUpdate("Account", accountEntities);
-  logger.info(`#${height} updating ${accountEntities.length} account entities`);
-  logger.info(`#${height} updateAccoutList: ${Date.now() - start}ms`);
+  const ts = Date.now();
+  const all_accounts_balances = await apiAt.query.system.account.entries();
+  const accounts = all_accounts_balances.map(([address, _]) =>
+    address.toString()
+  );
+  let entities = await store.getByFields<Account>("Account", [
+    ["address", "in", accounts],
+  ]);
+
+  const entityMap = new Map<string, Account>();
+  entities.forEach((entity) => {
+    entityMap.set(entity.address, entity);
+  });
+
+  logger.info(`Fetching account balances took ${Date.now() - ts}ms`);
+  logger.info(`Number of accounts fetched: ${all_accounts_balances.length}`);
+
+  const updatedEntities: Account[] = [];
+
+  for (const [address, balance] of all_accounts_balances) {
+    const freeBalance = balance.data.free.toString();
+    const reservedBalance = balance.data.reserved.toString();
+
+    logger.info(`Processing account ${address.toString()}`);
+    logger.info(`Free balance: ${freeBalance}`);
+    logger.info(`Reserved balance: ${reservedBalance}`);
+
+    if (freeBalance === "0") {
+      logger.warn(`Account ${address.toString()} has zero free balance`);
+    }
+
+    let entity = entityMap.get(address.toString());
+
+    if (entity) {
+      entity.balance_free = BigInt(freeBalance);
+      entity.balance_total = BigInt(freeBalance) + BigInt(reservedBalance);
+      entity.updatedAt = height;
+      logger.info(`Updated existing entity for account ${address.toString()}`);
+      updatedEntities.push(entity);
+    } else {
+      entity = initAccount(address.toString(), height);
+      entity.balance_free = BigInt(freeBalance);
+      entity.balance_total = BigInt(freeBalance) + BigInt(reservedBalance);
+      entity.updatedAt = height;
+      logger.info(`Initialized new entity for account ${address.toString()}`);
+      updatedEntities.push(entity);
+    }
+  }
+
+  if (updatedEntities.length === 0) {
+    logger.info(`No account entities to update at block height ${height}`);
+    return;
+  }
+
+  await store.bulkUpdate("Account", updatedEntities);
+  logger.info(
+    `#${height} - Updated ${updatedEntities.length} account entities`
+  );
 }
 
 export async function handleNewAccount(event: SubstrateEvent): Promise<void> {

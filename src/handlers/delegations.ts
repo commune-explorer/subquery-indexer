@@ -5,6 +5,7 @@ import {
   DelegateBalance,
   DelegationEvent,
 } from "../types";
+import { initAccount } from "../helpers";
 import { ZERO } from "../utils/consts";
 
 export async function handleStakeAdded(event: SubstrateEvent): Promise<void> {
@@ -146,36 +147,28 @@ export async function syncStakedAmount(block: SubstrateBlock): Promise<void> {
     entityMap.set(entity.address, entity);
   });
 
-  const newEntities: Account[] = [];
   const updatedEntities: Account[] = [];
 
   for (const [address, stake] of Object.entries(userStakes)) {
     let entity = entityMap.get(address);
+    // If the key with stake already exists
     if (entity) {
       entity.balance_staked = stake;
       entity.balance_total = entity.balance_free + entity.balance_staked;
       entity.updatedAt = BigInt(height);
       updatedEntities.push(entity);
     } else {
+      // If it doesn't, that means it has to have 0 balance, and we just add the stake
+      
       // Create new entity if it doesn't exist
-      entity = new Account(
-        address,
-        address,
-        BigInt(height),
-        BigInt(height),
-        BigInt(0),
-        stake,
-        stake
-      );
-      newEntities.push(entity);
-      entityMap.set(address, entity);
+      entity = initAccount(address, BigInt(height));
+      entity.balance_staked = stake;
+      entity.balance_total = stake;
+      entity.updatedAt = BigInt(height);
+      entity.save();
     }
   }
 
-  // Use bulkCreate for new entities and bulkUpdate for modified entities
-  if (newEntities.length > 0) {
-    await store.bulkCreate("Account", newEntities);
-  }
   if (updatedEntities.length > 0) {
     await store.bulkUpdate("Account", updatedEntities);
   }

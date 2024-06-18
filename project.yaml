@@ -83,6 +83,11 @@ dataSources:
           kind: substrate/BlockHandler
           filter:
             modulo: 450
+          # update balances every hour
+        - handler: updateAccountList
+          kind: substrate/BlockHandler
+          filter:
+            modulo: 100
 
         # Global parameters
         - handler: handleGlobalParametersUpdated
