@@ -78,11 +78,11 @@ dataSources:
           filter:
             module: subspaceModule
             method: StakeRemoved
-        # fetch the net worth amount every hour
+        # fetch the net worth amount 
         - handler: syncNetWorth
           kind: substrate/BlockHandler
           filter:
-            modulo: 450
+            modulo: 100
           # update balances every hour
         # - handler: updateAccountList
         #   kind: substrate/BlockHandler
@@ -100,7 +100,7 @@ dataSources:
         - handler: fetchSubnetBurns
           kind: substrate/BlockHandler
           filter:
-            modulo: 432
+            modulo: 150
         # Sync Bonds
         - handler: fetchBonds
           kind: substrate/BlockHandler

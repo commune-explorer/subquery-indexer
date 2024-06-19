@@ -5,6 +5,7 @@ import {
   SubnetConsensus,
   SubnetParams,
 } from "../types/models";
+import { Struct, u128, u32, Text } from "@polkadot/types";
 
 export async function handleNetworkAdded(event: SubstrateEvent): Promise<void> {
   if (!event.extrinsic) return;
@@ -79,6 +80,15 @@ export async function fetchSubnetBurns(block: SubstrateBlock): Promise<void> {
   await store.bulkUpdate("SubnetBurn", records);
 }
 
+interface SubnetGovernanceConfig extends Struct {
+  readonly proposalCost: u128;
+  readonly proposalExpiration: u32;
+  readonly voteMode: Text;
+  readonly proposalRewardTreasuryAllocation: Text;
+  readonly maxProposalRewardTreasuryAllocation: u128;
+  readonly proposalRewardInterval: u32;
+}
+
 async function fetchSubnetParams(
   netUid: number,
   height: number,
@@ -122,9 +132,13 @@ async function fetchSubnetParams(
   const maximum_set_weight_calls_per_epoch = (
     await apiAt.query.subspaceModule.maximumSetWeightCallsPerEpoch(netUid)
   ).toJSON() as number;
-  const vote_mode = (
-    await apiAt.query.governanceModule.voteModeSubnet(netUid)
-  ).toString();
+  const governanceConfig =
+    (await api.query.governanceModule.subnetGovernanceConfig(
+      netUid
+    )) as unknown as SubnetGovernanceConfig;
+
+  const vote_mode = governanceConfig.voteMode.toString();
+
   const bonds_ma = BigInt(
     (await apiAt.query.subspaceModule.bondsMovingAverage(netUid)).toString()
   );
