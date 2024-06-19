@@ -123,7 +123,7 @@ async function fetchSubnetParams(
     await apiAt.query.subspaceModule.maximumSetWeightCallsPerEpoch(netUid)
   ).toJSON() as number;
   const vote_mode = (
-    await apiAt.query.subspaceModule.voteModeSubnet(netUid)
+    await apiAt.query.governanceModule.voteModeSubnet(netUid)
   ).toString();
   const bonds_ma = BigInt(
     (await apiAt.query.subspaceModule.bondsMovingAverage(netUid)).toString()
