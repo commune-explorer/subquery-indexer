@@ -32,76 +32,87 @@ export async function fetchAccounts(block: SubstrateBlock): Promise<void> {
   await store.bulkUpdate("Account", entities);
 }
 
-export async function updateAccountList(block: SubstrateBlock): Promise<void> {
-  const hash = block.block.header.hash.toString();
-  const height = block.block.header.number.toBigInt();
+// export async function updateAccountList(block: SubstrateBlock): Promise<void> {
+//   const hash = block.block.header.hash.toString();
+//   const height = block.block.header.number.toBigInt();
 
-  const apiAt = await unsafeApi?.at(hash);
+//   const apiAt = await unsafeApi?.at(hash);
 
-  if (!apiAt) {
-    logger.error("Failed to get API at the given block hash");
-    return;
-  }
+//   if (!apiAt) {
+//     logger.error("Failed to get API at the given block hash");
+//     return;
+//   }
 
-  const ts = Date.now();
-  const all_accounts_balances = await apiAt.query.system.account.entries();
-  const accounts = all_accounts_balances.map(([address, _]) =>
-    address.toString()
-  );
-  let entities = await store.getByFields<Account>("Account", [
-    ["address", "in", accounts],
-  ]);
+//   const ts = Date.now();
+//   const all_accounts_balances = await apiAt.query.system.account.entries();
+//   const all_accounts_balances_valid = all_accounts_balances.map(
+//     ([address, balance]) => {
+//       return [(address.toHuman() as [string])[0], balance] as [
+//         string,
+//         typeof balance
+//       ];
+//     }
+//   );
 
-  const entityMap = new Map<string, Account>();
-  entities.forEach((entity) => {
-    entityMap.set(entity.address, entity);
-  });
+//   const accounts = all_accounts_balances_valid.map(([address, _]) => address);
 
-  logger.info(`Fetching account balances took ${Date.now() - ts}ms`);
-  logger.info(`Number of accounts fetched: ${all_accounts_balances.length}`);
+//   let entities = await store.getByFields<Account>("Account", [
+//     ["address", "in", accounts],
+//   ]);
 
-  const updatedEntities: Account[] = [];
+//   const entityMap = new Map<string, Account>();
+//   entities.forEach((entity) => {
+//     entityMap.set(entity.address, entity);
+//   });
 
-  for (const [address, balance] of all_accounts_balances) {
-    const freeBalance = balance.data.free.toString();
-    const reservedBalance = balance.data.reserved.toString();
+//   logger.info(`Fetching account balances took ${Date.now() - ts}ms`);
+//   logger.info(
+//     `Number of accounts fetched: ${all_accounts_balances_valid.length}`
+//   );
 
-    logger.info(`Processing account ${address.toString()}`);
-    logger.info(`Free balance: ${freeBalance}`);
-    logger.info(`Reserved balance: ${reservedBalance}`);
+//   const updatedEntities: Account[] = [];
 
-    if (freeBalance === "0") {
-      logger.warn(`Account ${address.toString()} has zero free balance`);
-    }
+//   for (const [address, balance] of all_accounts_balances_valid) {
+//     let entity = entityMap.get(address.toString());
 
-    let entity = entityMap.get(address.toString());
+//     let create_entry: boolean = false;
+//     if (entity == null) {
+//       // If the key was not on the map, create the entity and set it to be
+//       // saved at the end, instead of updating it.
+//       entity = initAccount(address, BigInt(height));
+//       create_entry = true;
+//     }
 
-    if (entity) {
-      entity.balance_free = BigInt(freeBalance);
-      entity.balance_total = BigInt(freeBalance) + BigInt(reservedBalance);
-      entity.updatedAt = height;
-      logger.info(`Updated existing entity for account ${address.toString()}`);
-      updatedEntities.push(entity);
-    } else {
-      entity = initAccount(address.toString(), height);
-      entity.balance_free = BigInt(freeBalance);
-      entity.balance_total = BigInt(freeBalance) + BigInt(reservedBalance);
-      entity.updatedAt = height;
-      logger.info(`Initialized new entity for account ${address.toString()}`);
-      updatedEntities.push(entity);
-    }
-  }
+//     // Update the balance value
+//     const freeBalance =  BigInt(balance.data.free.toString());
+//     entity.balance_free =freeBalance;
+  
+//     entity.balance_total = entity.balance_free + entity.balance_staked;
+//     entity.updatedAt = height;
 
-  if (updatedEntities.length === 0) {
-    logger.info(`No account entities to update at block height ${height}`);
-    return;
-  }
+//     logger.debug(`Processing account ${address} with free balance: ${freeBalance}`);
 
-  await store.bulkUpdate("Account", updatedEntities);
-  logger.info(
-    `#${height} - Updated ${updatedEntities.length} account entities`
-  );
-}
+//     if (create_entry) {
+//       // If the key with stake didn't already exist, create it
+//       entity.save();
+//       logger.info(`Initialized new entity for account ${address}`);
+//     } else {
+//       // Otherwise, just defer to updating it
+//       updatedEntities.push(entity);
+//       logger.debug(`Will update existing entity for account ${address}`);
+//     }
+//   }
+
+//   if (updatedEntities.length > 0) {
+//     // Update the previously existing entities
+//     await store.bulkUpdate("Account", updatedEntities);
+//     logger.info(
+//       `Updated ${updatedEntities.length} account entities at block #${height}`
+//     );
+//   } else {
+//     logger.info(`No account entities to update at block #${height}`);
+//   }
+// }
 
 export async function handleNewAccount(event: SubstrateEvent): Promise<void> {
   const height = event.block.block.header.number.toBigInt();

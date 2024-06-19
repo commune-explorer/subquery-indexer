@@ -98,7 +98,7 @@ const removeAllDelegationRecords = async () => {
   }
 };
 
-export async function syncStakedAmount(block: SubstrateBlock): Promise<void> {
+export async function syncNetWorth(block: SubstrateBlock): Promise<void> {
   if (!unsafeApi) return;
 
   const hash = block.block.header.hash.toString();
@@ -137,9 +137,18 @@ export async function syncStakedAmount(block: SubstrateBlock): Promise<void> {
   await store.bulkUpdate("DelegateBalance", records);
 
   const accounts = Object.keys(userStakes);
-  let entities = await store.getByFields<Account>("Account", [
-    ["address", "in", accounts],
-  ]);
+  let entities = await store.getByFields<Account>("Account", []);
+
+  // We check the user balances, as we need to know if they changed as well
+  const balances = await apiAt.query.system.account.multi(accounts);
+  // zip together the stakes and balances
+  const usersFunds = accounts.map((account, index) => {
+    return {
+      address: account,
+      balance: BigInt(balances[index].data.free.toString()),
+      stake: userStakes[account],
+    };
+  });
 
   // Create a map of entities indexed by their address
   const entityMap = new Map<string, Account>();
@@ -149,27 +158,41 @@ export async function syncStakedAmount(block: SubstrateBlock): Promise<void> {
 
   const updatedEntities: Account[] = [];
 
-  for (const [address, stake] of Object.entries(userStakes)) {
+  for (const { address, stake, balance } of usersFunds) {
     let entity = entityMap.get(address);
-    // If the key with stake already exists
-    if (entity) {
-      entity.balance_staked = stake;
-      entity.balance_total = entity.balance_free + entity.balance_staked;
-      entity.updatedAt = BigInt(height);
-      updatedEntities.push(entity);
-    } else {
-      // If it doesn't, that means it has to have 0 balance, and we just add the stake
-      
-      // Create new entity if it doesn't exist
+
+    let create_entry: boolean = false;
+    if (entity == null) {
+      // If the key was not on the map, create the entity and set it to be
+      // saved at the end, instead of updating it.
       entity = initAccount(address, BigInt(height));
-      entity.balance_staked = stake;
-      entity.balance_total = stake;
-      entity.updatedAt = BigInt(height);
+      create_entry = true;
+    }
+
+    // Update the stake value
+    entity.balance_staked = stake;
+    entity.balance_total = balance + stake;
+    entity.balance_free = balance;
+    entity.updatedAt = BigInt(height);
+
+    if (create_entry) {
+      // If the key with stake didn't already exist, create it
       entity.save();
+      logger.info(`Initialized new entity for account ${address}`);
+    } else {
+      // Otherwise, just defer to updating it
+      updatedEntities.push(entity);
+      logger.debug(`Will update existing entity for account ${address}`);
     }
   }
 
   if (updatedEntities.length > 0) {
+    // Update the previously existing entities
     await store.bulkUpdate("Account", updatedEntities);
+    logger.info(
+      `Updated ${updatedEntities.length} account entities at block #${height}`
+    );
+  } else {
+    logger.info(`No staked amount to update at block height #${height}`);
   }
 }
