@@ -113,24 +113,21 @@ export async function syncNetWorth(block: SubstrateBlock): Promise<void> {
   const userStakes: Record<string, bigint> = {};
 
   for (const [key, value] of stakeFrom) {
-    const [netUid, module] = key.toHuman() as [number, string];
+    const [account, module] = key.toHuman() as [string, string];
+    const amount = BigInt(value.toString());
 
-    const stakers = value.toJSON() as Record<string, number>;
+    if (amount === ZERO) continue;
 
-    for (const [account, amount] of Object.entries(stakers)) {
-      if (!amount) continue;
-      records.push(
-        DelegateBalance.create({
-          id: `${account}-${module}-${netUid}`,
-          netUid,
-          lastUpdate: height,
-          account,
-          module,
-          amount: BigInt(amount),
-        })
-      );
-      userStakes[account] = (userStakes[account] ?? ZERO) + BigInt(amount);
-    }
+    records.push(
+      DelegateBalance.create({
+        id: `${account}-${module}`,
+        lastUpdate: height,
+        account,
+        module,
+        amount,
+      })
+    );
+    userStakes[account] = (userStakes[account] ?? ZERO) + amount;
   }
 
   await removeAllDelegationRecords();
