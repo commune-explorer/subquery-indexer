@@ -15,8 +15,7 @@ export class DelegationEvent implements Entity {
         
         id: string,
         height: number,
-        extrinsicId: number,
-        netUid: number,
+        extrinsicId: string,
         account: string,
         module: string,
         amount: bigint,
@@ -25,7 +24,6 @@ export class DelegationEvent implements Entity {
         this.id = id;
         this.height = height;
         this.extrinsicId = extrinsicId;
-        this.netUid = netUid;
         this.account = account;
         this.module = module;
         this.amount = amount;
@@ -35,8 +33,7 @@ export class DelegationEvent implements Entity {
 
     public id: string;
     public height: number;
-    public extrinsicId: number;
-    public netUid: number;
+    public extrinsicId: string;
     public account: string;
     public module: string;
     public amount: bigint;
@@ -68,26 +65,6 @@ export class DelegationEvent implements Entity {
         }
     }
 
-    static async getByHeight(height: number): Promise<DelegationEvent[] | undefined>{
-      const records = await store.getByField('DelegationEvent', 'height', height);
-      return records.map(record => this.create(record as DelegationEventProps));
-    }
-
-    static async getByNetUid(netUid: number): Promise<DelegationEvent[] | undefined>{
-      const records = await store.getByField('DelegationEvent', 'netUid', netUid);
-      return records.map(record => this.create(record as DelegationEventProps));
-    }
-
-    static async getByModule(module: string): Promise<DelegationEvent[] | undefined>{
-      const records = await store.getByField('DelegationEvent', 'module', module);
-      return records.map(record => this.create(record as DelegationEventProps));
-    }
-
-    static async getByAmount(amount: bigint): Promise<DelegationEvent[] | undefined>{
-      const records = await store.getByField('DelegationEvent', 'amount', amount);
-      return records.map(record => this.create(record as DelegationEventProps));
-    }
-
 
     /**
      * Gets entities matching the specified filters and options.
@@ -105,7 +82,6 @@ export class DelegationEvent implements Entity {
             record.id,
             record.height,
             record.extrinsicId,
-            record.netUid,
             record.account,
             record.module,
             record.amount,

@@ -11,27 +11,24 @@ export class DelegateBalance implements Entity {
     constructor(
         
         id: string,
-        netUid: number,
-        lastUpdate: number,
         account: string,
         module: string,
         amount: bigint,
+        lastUpdate: number,
     ) {
         this.id = id;
-        this.netUid = netUid;
-        this.lastUpdate = lastUpdate;
         this.account = account;
         this.module = module;
         this.amount = amount;
+        this.lastUpdate = lastUpdate;
         
     }
 
     public id: string;
-    public netUid: number;
-    public lastUpdate: number;
     public account: string;
     public module: string;
     public amount: bigint;
+    public lastUpdate: number;
     
 
     get _name(): string {
@@ -59,26 +56,6 @@ export class DelegateBalance implements Entity {
         }
     }
 
-    static async getByNetUid(netUid: number): Promise<DelegateBalance[] | undefined>{
-      const records = await store.getByField('DelegateBalance', 'netUid', netUid);
-      return records.map(record => this.create(record as DelegateBalanceProps));
-    }
-
-    static async getByLastUpdate(lastUpdate: number): Promise<DelegateBalance[] | undefined>{
-      const records = await store.getByField('DelegateBalance', 'lastUpdate', lastUpdate);
-      return records.map(record => this.create(record as DelegateBalanceProps));
-    }
-
-    static async getByModule(module: string): Promise<DelegateBalance[] | undefined>{
-      const records = await store.getByField('DelegateBalance', 'module', module);
-      return records.map(record => this.create(record as DelegateBalanceProps));
-    }
-
-    static async getByAmount(amount: bigint): Promise<DelegateBalance[] | undefined>{
-      const records = await store.getByField('DelegateBalance', 'amount', amount);
-      return records.map(record => this.create(record as DelegateBalanceProps));
-    }
-
 
     /**
      * Gets entities matching the specified filters and options.
@@ -94,11 +71,10 @@ export class DelegateBalance implements Entity {
         assert(typeof record.id === 'string', "id must be provided");
         let entity = new this(
             record.id,
-            record.netUid,
-            record.lastUpdate,
             record.account,
             record.module,
             record.amount,
+            record.lastUpdate,
         );
         Object.assign(entity,record);
         return entity;

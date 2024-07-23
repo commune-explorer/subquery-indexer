@@ -51,23 +51,21 @@ enum DelegateAction {
 type DelegationEvent @entity {
   id: ID!
 
-  height: Int! @index
-  extrinsicId: Int!
-  netUid: Int! @index
+  height: Int!
+  extrinsicId: String!
   account: String!
-  module: String! @index
-  amount: BigInt! @index
+  module: String!
+  amount: BigInt!
   action: DelegateAction!
 }
 
 type DelegateBalance @entity {
   id: ID!
 
-  netUid: Int! @index
-  lastUpdate: Int! @index
   account: String!
-  module: String! @index
-  amount: BigInt! @index
+  module: String!
+  amount: BigInt!
+  lastUpdate: Int!
 }
 
 type GlobalParams @entity {

@@ -21,40 +21,20 @@ const handleDelegation = async (
   action: DelegateAction
 ) => {
   if (!event.extrinsic) return;
-  const { method, section } = event.extrinsic.extrinsic.method;
+  const { method } = event.extrinsic.extrinsic.method;
   if (method === "register") return;
   const height = event.block.block.header.number.toNumber();
   const { data } = event.event;
-  const { args } = event.extrinsic.extrinsic;
   const account = data[0].toString();
   const module = data[1].toString();
   const amount = BigInt(data[2].toString());
 
-  let netUid: number | undefined = undefined;
-  if (section === "utility" && method === "batchAll") {
-    const calls = (args[0] as any).toHuman();
-    calls.forEach(({ args }: any) => {
-      if (
-        args.module_key === module &&
-        BigInt(args.amount.replaceAll(",", "")) === amount
-      ) {
-        netUid = parseInt(args.netuid);
-        logger.info(
-          `height = ${height} netUid = ${netUid} module = ${module} account = ${account} amount = ${amount}`
-        );
-      }
-    });
-  } else {
-    netUid = args[0].toJSON() as number;
-  }
-
-  if (amount === ZERO || netUid === undefined) return;
+  if (amount === ZERO) return;
 
   const eventRecord = DelegationEvent.create({
-    id: `${height}-${account}-${module}-${netUid}`,
+    id: `${height}-${account}-${module}`,
     height,
-    extrinsicId: event.extrinsic.idx,
-    netUid,
+    extrinsicId: event.extrinsic.idx.toString(), // Convert to string
     account,
     module,
     amount,
@@ -62,13 +42,12 @@ const handleDelegation = async (
   });
   await eventRecord.save();
 
-  const id = `${account}-${module}-${netUid}`;
+  const id = `${account}-${module}`;
 
   let balanceRecord = await DelegateBalance.get(id);
   if (!balanceRecord) {
     balanceRecord = DelegateBalance.create({
       id,
-      netUid,
       account,
       module,
       amount: ZERO,
