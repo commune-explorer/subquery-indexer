@@ -117,9 +117,7 @@ async function fetchSubnetParams(
     await apiAt.query.subspaceModule.minAllowedWeights(netUid)
   ).toJSON() as number;
   const max_stake = BigInt(0);
-  const min_stake = BigInt(
-    (await apiAt.query.subspaceModule.minStake(netUid)).toString()
-  );
+  const min_stake = BigInt(0);
   const max_weight_age = BigInt(
     (await apiAt.query.subspaceModule.maxWeightAge(netUid)).toString()
   );

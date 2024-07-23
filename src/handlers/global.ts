@@ -39,9 +39,7 @@ export async function fetchGlobalParameters(
   const max_burn = BigInt(
     (await apiAt.query.subspaceModule.maxBurn()).toJSON() as number
   );
-  const min_stake = BigInt(
-    (await apiAt.query.subspaceModule.minStakeGlobal()).toJSON() as number
-  );
+  const min_stake = BigInt(0);
   const floor_delegation_fee = (
     await apiAt.query.subspaceModule.floorDelegationFee()
   ).toJSON() as number;
