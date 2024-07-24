@@ -127,9 +127,12 @@ async function fetchSubnetParams(
   const trust_ratio = (
     await apiAt.query.subspaceModule.trustRatio(netUid)
   ).toJSON() as number;
-  const maximum_set_weight_calls_per_epoch = (
+  const maximum_set_weight_calls_per_epoch_raw = (
     await apiAt.query.subspaceModule.maximumSetWeightCallsPerEpoch(netUid)
-  ).toJSON() as number;
+  ).toJSON() as number | null;
+
+  const maximum_set_weight_calls_per_epoch =
+    maximum_set_weight_calls_per_epoch_raw ?? 1;
   const governanceConfig =
     (await api.query.governanceModule.subnetGovernanceConfig(
       netUid
