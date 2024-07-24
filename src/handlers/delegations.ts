@@ -21,37 +21,20 @@ const handleDelegation = async (
   action: DelegateAction
 ) => {
   if (!event.extrinsic) return;
-  const { method, section } = event.extrinsic.extrinsic.method;
+  const { method } = event.extrinsic.extrinsic.method;
   if (method === "register") return;
   const height = event.block.block.header.number.toNumber();
   const { data } = event.event;
-  const { args } = event.extrinsic.extrinsic;
   const account = data[0].toString();
   const module = data[1].toString();
   const amount = BigInt(data[2].toString());
 
-  let netUid: number | undefined = undefined;
-  if (section === "utility" && method === "batchAll") {
-    const calls = (args[0] as any).toHuman();
-    calls.forEach(({ args }: any) => {
-      if (
-        args.module_key === module &&
-        BigInt(args.amount.replaceAll(",", "")) === amount
-      ) {
-        netUid = parseInt(args.netuid);
-        logger.info(
-          `height = ${height} netUid = ${netUid} module = ${module} account = ${account} amount = ${amount}`
-        );
-      }
-    });
-  } else {
-    netUid = args[0].toJSON() as number;
-  }
+  if (amount === ZERO) return;
 
-  if (amount === ZERO || netUid === undefined) return;
+  const netUid = 404;
 
   const eventRecord = DelegationEvent.create({
-    id: `${height}-${account}-${module}-${netUid}`,
+    id: `${height}-${account}-${module}`,
     height,
     extrinsicId: event.extrinsic.idx,
     netUid,
@@ -113,24 +96,22 @@ export async function syncNetWorth(block: SubstrateBlock): Promise<void> {
   const userStakes: Record<string, bigint> = {};
 
   for (const [key, value] of stakeFrom) {
-    const [netUid, module] = key.toHuman() as [number, string];
+    const [account, module] = key.toHuman() as [string, string];
+    const amount = BigInt(value.toString());
 
-    const stakers = value.toJSON() as Record<string, number>;
+    if (amount === ZERO) continue;
 
-    for (const [account, amount] of Object.entries(stakers)) {
-      if (!amount) continue;
-      records.push(
-        DelegateBalance.create({
-          id: `${account}-${module}-${netUid}`,
-          netUid,
-          lastUpdate: height,
-          account,
-          module,
-          amount: BigInt(amount),
-        })
-      );
-      userStakes[account] = (userStakes[account] ?? ZERO) + BigInt(amount);
-    }
+    records.push(
+      DelegateBalance.create({
+        id: `${account}-${module}`,
+        netUid: 404,
+        lastUpdate: height,
+        account,
+        module,
+        amount,
+      })
+    );
+    userStakes[account] = (userStakes[account] ?? ZERO) + amount;
   }
 
   await removeAllDelegationRecords();
