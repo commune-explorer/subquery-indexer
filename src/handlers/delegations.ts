@@ -1,6 +1,5 @@
 import { SubstrateBlock, SubstrateEvent } from "@subql/types";
 import {
-  Account,
   DelegateAction,
   DelegateBalance,
   DelegationEvent,
@@ -71,31 +70,26 @@ const handleDelegation = async (
   await balanceRecord.save();
 };
 
-const removeAllDelegationRecords = async () => {
-  while (true) {
-    const records = await DelegateBalance.getByFields([["module", "!=", ""]]);
-    if (records.length === 0) break;
-    const ids = records.map(({ id }) => id);
-    await store.bulkRemove("DelegateBalance", ids);
-    logger.info(`remove ${ids.length} items`);
-  }
+const removeAllDelegateBalanceRecords = async () => {
+  const allRecords = await store.getByFields("DelegateBalance", []);
+  const allIds = allRecords.map(record => record.id);
+  await store.bulkRemove("DelegateBalance", allIds);
 };
 
-export async function syncNetWorth(block: SubstrateBlock): Promise<void> {
+export async function fetchDelegations(block: SubstrateBlock): Promise<void> {
   if (!unsafeApi) return;
 
   const hash = block.block.header.hash.toString();
   const apiAt = await unsafeApi.at(hash);
 
-  const stakeFrom = await apiAt.query.subspaceModule.stakeFrom.entries();
+  logger.info(`#${block.block.header.number.toNumber()}: fetchDelegations`);
+  const stakeTo = await apiAt.query.subspaceModule.stakeTo.entries();
   const height = block.block.header.number.toNumber();
 
   const records: DelegateBalance[] = [];
   logger.info(`#${height}: syncStakedAmount`);
 
-  const userStakes: Record<string, bigint> = {};
-
-  for (const [key, value] of stakeFrom) {
+  for (const [key, value] of stakeTo) {
     const [account, module] = key.toHuman() as [string, string];
     const amount = BigInt(value.toString());
 
@@ -111,69 +105,9 @@ export async function syncNetWorth(block: SubstrateBlock): Promise<void> {
         amount,
       })
     );
-    userStakes[account] = (userStakes[account] ?? ZERO) + amount;
   }
 
-  await removeAllDelegationRecords();
-  await store.bulkUpdate("DelegateBalance", records);
+  await removeAllDelegateBalanceRecords();
+  await store.bulkCreate("DelegateBalance", records);
 
-  const accounts = Object.keys(userStakes);
-  let entities = await store.getByFields<Account>("Account", []);
-
-  // We check the user balances, as we need to know if they changed as well
-  const balances = await apiAt.query.system.account.multi(accounts);
-  // zip together the stakes and balances
-  const usersFunds = accounts.map((account, index) => {
-    return {
-      address: account,
-      balance: BigInt(balances[index].data.free.toString()),
-      stake: userStakes[account],
-    };
-  });
-
-  // Create a map of entities indexed by their address
-  const entityMap = new Map<string, Account>();
-  entities.forEach((entity) => {
-    entityMap.set(entity.address, entity);
-  });
-
-  const updatedEntities: Account[] = [];
-
-  for (const { address, stake, balance } of usersFunds) {
-    let entity = entityMap.get(address);
-
-    let create_entry: boolean = false;
-    if (entity == null) {
-      // If the key was not on the map, create the entity and set it to be
-      // saved at the end, instead of updating it.
-      entity = initAccount(address, BigInt(height));
-      create_entry = true;
-    }
-
-    // Update the stake value
-    entity.balance_staked = stake;
-    entity.balance_total = balance + stake;
-    entity.balance_free = balance;
-    entity.updatedAt = BigInt(height);
-
-    if (create_entry) {
-      // If the key with stake didn't already exist, create it
-      entity.save();
-      logger.info(`Initialized new entity for account ${address}`);
-    } else {
-      // Otherwise, just defer to updating it
-      updatedEntities.push(entity);
-      logger.debug(`Will update existing entity for account ${address}`);
-    }
-  }
-
-  if (updatedEntities.length > 0) {
-    // Update the previously existing entities
-    await store.bulkUpdate("Account", updatedEntities);
-    logger.info(
-      `Updated ${updatedEntities.length} account entities at block #${height}`
-    );
-  } else {
-    logger.info(`No staked amount to update at block height #${height}`);
-  }
 }
