@@ -1,7 +1,7 @@
 import { SubstrateBlock } from "@subql/types";
 import { Account, DelegateBalance } from "../types";
 import { ZERO } from "../utils/consts";
-
+import { accountPageKeys } from "../utils/accountPageKeys";
 
 const removeAllAccounts = async () => {
   const allRecords = await store.getByFields("Account", []);
@@ -56,17 +56,31 @@ async function* getAccountsIterator(block: SubstrateBlock): AsyncGenerator<[stri
   const hash = block.block.header.hash.toString();
   const apiAt = await unsafeApi.at(hash);
 
-  const allAccounts = await apiAt.query.system.account.keys();
-  const queries = allAccounts.map((accountKey) => {
-    return [apiAt.query.system.account, accountKey.args[0]] as [any, any];
-  });
+  const startKeys = [...accountPageKeys];
 
-  const balances: any[] = await apiAt.queryMulti(queries);
+  const pageSize = 1000;
 
-  for (let i = 0; i < balances.length; i++) {
-    const account = allAccounts[i]?.args[0];
-    if (account && balances[i]?.data?.free) {
-      yield [account.toString(), balances[i].data.free.toString()];
+  //adjust if necessary
+  let spreadCallsOverAmnt = 4;
+  const chunkSize = Math.ceil(startKeys.length / spreadCallsOverAmnt);
+
+  for (let i = 0; i < spreadCallsOverAmnt; i++) {
+    const pagesToDoThisBatch = startKeys.splice(0, chunkSize);
+    let calls = pagesToDoThisBatch.map(startKey => apiAt.query.system.account.entriesPaged({
+      args: [],
+      pageSize,
+      startKey}));
+
+    let pagedResults = await Promise.all(calls);
+    for (const entries of pagedResults) {
+      if (entries.length === 0){
+        spreadCallsOverAmnt = 0;
+        break;
+      }
+
+      for (const [key, accountInfo] of entries) {
+        yield [key.args[0].toString(), accountInfo.data.free.toString()];
+      }
     }
   }
 }
