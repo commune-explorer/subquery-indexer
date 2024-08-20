@@ -109,7 +109,7 @@ dataSources:
           kind: substrate/BlockHandler
           filter:
             modulo: 150
-        # - handler: fetchAccounts
-        #   kind: substrate/BlockHandler
-        #   filter:
-        #     modulo: 100
+        - handler: fetchAccounts
+          kind: substrate/BlockHandler
+          filter:
+            modulo: 1 #fetchAccounts handles this

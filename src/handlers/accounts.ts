@@ -14,6 +14,7 @@ export async function fetchAccounts(block: SubstrateBlock): Promise<void> {
 
   logger.info(`Fetching accounts at block #${height}`);
   // Fetch all DelegateBalance entries for staking module
+  //todo: this returns only 100 records
   const allDelegateBalances = await DelegateBalance.getByFields([]);
 
   // Create a map of account addresses to their staked balances
@@ -23,8 +24,8 @@ export async function fetchAccounts(block: SubstrateBlock): Promise<void> {
     stakedBalancesMap.set(delegateBalance.account, currentBalance + delegateBalance.amount);
   }
 
-  removeAllAccounts();
-  logger.info(`#${height}: fetchAccounts`);
+  // removeAllAccounts();
+  // logger.info(`#${height}: fetchAccounts`);
 
   const accountsIterator = getAccountsIterator(block);
   const entities: Account[] = [];
@@ -46,27 +47,32 @@ export async function fetchAccounts(block: SubstrateBlock): Promise<void> {
       })
     );
   }
-
+  logger.info(`#${height}: acc length ${entities.length}`);
   await store.bulkCreate("Account", entities);
 }
 
 async function* getAccountsIterator(block: SubstrateBlock): AsyncGenerator<[string, string]> {
   if (!unsafeApi) throw new Error("API not initialized");
 
+  const blockheight = block.block.header.number.toNumber();
   const hash = block.block.header.hash.toString();
   const apiAt = await unsafeApi.at(hash);
 
+  //adjust if necessary
+  const chunkIdx = Math.floor((blockheight % 100) / 1);
   const startKeys = [...accountPageKeys];
-
   const pageSize = 1000;
 
+
   //adjust if necessary
-  let spreadCallsOverAmnt = 4;
+  let spreadCallsOverAmnt = 100;
   const chunkSize = Math.ceil(startKeys.length / spreadCallsOverAmnt);
 
-  for (let i = 0; i < spreadCallsOverAmnt; i++) {
-    const pagesToDoThisBatch = startKeys.splice(0, chunkSize);
-    let calls = pagesToDoThisBatch.map(startKey => apiAt.query.system.account.entriesPaged({
+  const startIndex = chunkSize * chunkSize;
+
+  const pagesToDoThisBatch = startKeys.slice(startIndex, startIndex+chunkSize);
+
+  let calls = pagesToDoThisBatch.map(startKey => apiAt.query.system.account.entriesPaged({
       args: [],
       pageSize,
       startKey}));
@@ -74,13 +80,16 @@ async function* getAccountsIterator(block: SubstrateBlock): AsyncGenerator<[stri
     let pagedResults = await Promise.all(calls);
     for (const entries of pagedResults) {
       if (entries.length === 0){
-        spreadCallsOverAmnt = 0;
+        // spreadCallsOverAmnt = 0;
         break;
       }
+//todo: dynamically add more pagekeys if needed
+//       if (entries.length === 1000 &&){
+//       }
 
       for (const [key, accountInfo] of entries) {
         yield [key.args[0].toString(), accountInfo.data.free.toString()];
       }
     }
-  }
+  // }
 }
