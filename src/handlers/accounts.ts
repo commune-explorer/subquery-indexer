@@ -68,7 +68,7 @@ async function* getAccountsIterator(block: SubstrateBlock): AsyncGenerator<[stri
   let spreadCallsOverAmnt = 100;
   const chunkSize = Math.ceil(startKeys.length / spreadCallsOverAmnt);
 
-  const startIndex = chunkSize * chunkSize;
+  const startIndex = chunkIdx * chunkSize;
 
   const pagesToDoThisBatch = startKeys.slice(startIndex, startIndex+chunkSize);
 
