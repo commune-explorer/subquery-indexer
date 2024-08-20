@@ -26,7 +26,7 @@ export async function handleModuleAdded(event: SubstrateEvent): Promise<void> {
         name: name.toHuman() as string,
         address: address.toHuman() as string,
         registeredAt: height,
-        timestamp,
+        timestamp: timestamp ?? new Date(),
         extrinsicId: idx
     });
 

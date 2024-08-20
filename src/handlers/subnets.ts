@@ -32,7 +32,7 @@ export async function handleNetworkAdded(event: SubstrateEvent): Promise<void> {
     netUid,
     extrinsicId: idx,
     registeredAt: height,
-    timestamp,
+    timestamp: timestamp ?? new Date(),
     name,
   });
 

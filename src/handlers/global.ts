@@ -83,7 +83,7 @@ export async function fetchGlobalParameters(
   const globalParams = GlobalParams.create({
     id: "global-params",
     lastUpdate: height,
-    timestamp,
+    timestamp: timestamp ?? new Date(),
     burn_rate,
     max_name_length,
     min_name_length,
