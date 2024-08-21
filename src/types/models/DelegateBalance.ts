@@ -69,6 +69,11 @@ export class DelegateBalance implements Entity {
       return records.map(record => this.create(record as DelegateBalanceProps));
     }
 
+    static async getByAccount(account: string): Promise<DelegateBalance[] | undefined>{
+      const records = await store.getByField('DelegateBalance', 'account', account);
+      return records.map(record => this.create(record as DelegateBalanceProps));
+    }
+
     static async getByModule(module: string): Promise<DelegateBalance[] | undefined>{
       const records = await store.getByField('DelegateBalance', 'module', module);
       return records.map(record => this.create(record as DelegateBalanceProps));

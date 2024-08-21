@@ -112,4 +112,4 @@ dataSources:
         - handler: fetchAccounts
           kind: substrate/BlockHandler
           filter:
-            modulo: 1 #fetchAccounts handles this
+            modulo: 1 #1 page per block seems fine

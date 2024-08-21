@@ -65,7 +65,7 @@ type DelegateBalance @entity {
 
   netUid: Int! @index
   lastUpdate: Int! @index
-  account: String!
+  account: String! @index
   module: String! @index
   amount: BigInt! @index
 }
