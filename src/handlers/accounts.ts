@@ -60,28 +60,30 @@ export async function fetchAccounts(block: SubstrateBlock): Promise<void> {
   await store.bulkCreate("Account", entities);
 }
 
+
 async function* getAccountsIterator(block: SubstrateBlock): AsyncGenerator<[string, string]> {
   if (!unsafeApi) throw new Error("API not initialized");
 
   const hash = block.block.header.hash.toString();
   const apiAt = await unsafeApi.at(hash);
 
-  const pageSize = 1000;
+  const pageSize = 250;
 
   const accEntries = await apiAt.query.system.account.entriesPaged({
     args: [],
     pageSize,
     startKey: currentPageKey});
 
-  if (accEntries.length === 0 || accEntries.length < 1000){
+  if (accEntries.length < 250){
     //no more entries, start at beginning...
     currentPageKey = undefined;
-    return;
+  }else{
+    currentPageKey = accEntries[accEntries.length - 1][0].toString();
   }
 
   for (let i = 0; i < accEntries.length - 1; i++) {
     const [key, accountInfo] = accEntries[i];
     yield [key.args[0].toString(), accountInfo.data.free.toString()];
   }
-  currentPageKey = accEntries[accEntries.length - 1][0].toString();
+
 }
