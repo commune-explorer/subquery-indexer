@@ -1,6 +1,7 @@
 import { SubstrateBlock } from "@subql/types";
 import {Account, DelegateBalance} from "../types";
 import { ZERO } from "../utils/consts";
+import {encodeAddress} from "@polkadot/util-crypto";
 
 export let currentPageKey: string | undefined = undefined;
 
@@ -30,17 +31,14 @@ export async function fetchAccounts(block: SubstrateBlock): Promise<void> {
   logger.info(`Fetching accounts at block #${height}`);
 
   const accountsIterator = getAccountsIterator(block);
-  const entities: Account[] = [];
+  let entities: Account[] = [];
 
   for await (const [address, freeBalance] of accountsIterator) {
     const freeBalanceBigInt = BigInt(freeBalance);
-    const stakedBalances = (await DelegateBalance.getByAccount(address))?.map(val => val.amount);
-    let stakedBalance = ZERO;
-    if(stakedBalances){
-      stakedBalances.forEach(balance => {
-        stakedBalance += balance
-      });
-    }
+
+    const stakedBalance = (await DelegateBalance.getByAccount(address))?.reduce(
+        (accumulator, delegation) => accumulator + delegation.amount,
+        ZERO) ?? ZERO;
 
     const totalBalance = freeBalanceBigInt + stakedBalance;
 
@@ -67,23 +65,22 @@ async function* getAccountsIterator(block: SubstrateBlock): AsyncGenerator<[stri
   const hash = block.block.header.hash.toString();
   const apiAt = await unsafeApi.at(hash);
 
-  const pageSize = 250;
+  const pageSize = 1000;
 
-  const accEntries = await apiAt.query.system.account.entriesPaged({
-    args: [],
-    pageSize,
-    startKey: currentPageKey});
+  const accountStorageKeys = await unsafeApi.rpc.state.getKeysPaged('0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9', pageSize, currentPageKey, hash);
 
-  if (accEntries.length < 250){
+  if (accountStorageKeys.length < pageSize){
     //no more entries, start at beginning...
     currentPageKey = undefined;
   }else{
-    currentPageKey = accEntries[accEntries.length - 1][0].toString();
+    currentPageKey = accountStorageKeys[accountStorageKeys.length - 1].toString();
   }
 
-  for (let i = 0; i < accEntries.length - 1; i++) {
-    const [key, accountInfo] = accEntries[i];
-    yield [key.args[0].toString(), accountInfo.data.free.toString()];
+  const accounts = accountStorageKeys.map(key => encodeAddress(key.slice(-32), unsafeApi.registry.chainSS58));
+  const accountInfos = await apiAt.query.system.account.multi(accounts);
+
+  for (let i = 0; i < accounts.length; i++) {
+    yield [accounts[i], accountInfos[i].data.free.toString()];
   }
 
 }
