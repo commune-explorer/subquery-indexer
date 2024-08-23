@@ -1,9 +1,9 @@
 import { SubstrateBlock } from "@subql/types";
 import {Account, DelegateBalance} from "../types";
 import { ZERO } from "../utils/consts";
+import {u8aToHex} from "@polkadot/util";
 import {encodeAddress} from "@polkadot/util-crypto";
-
-export let currentPageKey: string | undefined = undefined;
+export let currentPageKey: string = "0x";
 
 const removeAllAccounts = async () => {
   const allRecords = await store.getByFields("Account", []);
@@ -62,25 +62,32 @@ export async function fetchAccounts(block: SubstrateBlock): Promise<void> {
 async function* getAccountsIterator(block: SubstrateBlock): AsyncGenerator<[string, string]> {
   if (!unsafeApi) throw new Error("API not initialized");
 
-  const hash = block.block.header.hash.toString();
-  const apiAt = await unsafeApi.at(hash);
+    const hash = block.block.header.hash.toString();
+    const apiAt = await unsafeApi.at(hash);
 
-  const pageSize = 1000;
+    const pageSize = 500;
+    // @ts-ignore
+    const accountStorageKeys = await unsafeApi._rpcCore.provider.send('state_getKeysPaged', [
+            '0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9',//account
+            pageSize,
+            currentPageKey,
+            hash.toString()
+        ]
+        , false);
 
-  const accountStorageKeys = await unsafeApi.rpc.state.getKeysPaged('0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9', pageSize, currentPageKey, hash);
+    if (accountStorageKeys.length < pageSize){
+        //no more entries, start at beginning...
+        currentPageKey = "0x";
+    }else{
+        currentPageKey = accountStorageKeys[accountStorageKeys.length - 1];
+    }
 
-  if (accountStorageKeys.length < pageSize){
-    //no more entries, start at beginning...
-    currentPageKey = undefined;
-  }else{
-    currentPageKey = accountStorageKeys[accountStorageKeys.length - 1].toString();
-  }
+    // @ts-ignore
+    const accounts = accountStorageKeys.map(key => encodeAddress(u8aToHex(key.slice(-32)), unsafeApi.registry.chainSS58));
+    const accountInfos = await apiAt.query.system.account.multi(accounts);
 
-  const accounts = accountStorageKeys.map(key => encodeAddress(key.slice(-32), unsafeApi.registry.chainSS58));
-  const accountInfos = await apiAt.query.system.account.multi(accounts);
-
-  for (let i = 0; i < accounts.length; i++) {
-    yield [accounts[i], accountInfos[i].data.free.toString()];
-  }
+    for (let i = 0; i < accounts.length; i++) {
+        yield [accounts[i], accountInfos[i].data.free.toString()];
+    }
 
 }
