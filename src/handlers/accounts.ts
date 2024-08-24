@@ -1,7 +1,7 @@
-import { SubstrateBlock } from "@subql/types";
+import {SubstrateBlock} from "@subql/types";
 import {Account, DelegateBalance} from "../types";
-import { ZERO } from "../utils/consts";
-import {u8aToHex} from "@polkadot/util";
+import {ZERO} from "../utils/consts";
+import { hexToU8a } from '@polkadot/util';
 import {encodeAddress} from "@polkadot/util-crypto";
 export let currentPageKey: string = "0x";
 
@@ -12,16 +12,16 @@ const removeAllAccounts = async () => {
 };
 
 const removePageKeys = async () => {
-  let count = 0;
-  while (true) {
-    const records = await store.getByFields("Account", []);
-    const ids = records.map(({ id }) => id).filter((id) => id.startsWith('0x26aa'));
-    if (ids.length === 0){
-      break;
+    let count = 0;
+    while (true) {
+        const records = await store.getByFields("Account", []);
+        const ids = records.map(({ id }) => id).filter((id) => id.startsWith('0x26aa'));
+        if (ids.length === 0){
+            break;
+        }
+        count += ids.length;
+        await store.bulkRemove("Account", ids);
     }
-      count += ids.length;
-      await store.bulkRemove("Account", ids);
-  }
 };
 
 export async function fetchAccounts(block: SubstrateBlock): Promise<void> {
@@ -64,8 +64,9 @@ async function* getAccountsIterator(block: SubstrateBlock): AsyncGenerator<[stri
 
     const hash = block.block.header.hash.toString();
     const apiAt = await unsafeApi.at(hash);
+    let startKey = "0x";
 
-    const pageSize = 500;
+    const pageSize = 1000;
     // @ts-ignore
     const accountStorageKeys = await unsafeApi._rpcCore.provider.send('state_getKeysPaged', [
             '0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9',//account
@@ -83,7 +84,13 @@ async function* getAccountsIterator(block: SubstrateBlock): AsyncGenerator<[stri
     }
 
     // @ts-ignore
-    const accounts = accountStorageKeys.map(key => encodeAddress(u8aToHex(key.slice(-32)), unsafeApi.registry.chainSS58));
+    const accounts = accountStorageKeys.map(key => {
+        // the storage entry is xxhashAsU8a(prefix, 128) + xxhashAsU8a(method, 128), 256 bits total
+        const offset = 32;
+        const hashLen = 16;
+        return encodeAddress(hexToU8a(`${key}`).subarray(offset+hashLen))//registry.createTypeUnsafe('AccountId32', [hexToU8a(`${key}`).subarray(offset+hashLen)]).toString();
+    });
+
     const accountInfos = await apiAt.query.system.account.multi(accounts);
 
     for (let i = 0; i < accounts.length; i++) {
