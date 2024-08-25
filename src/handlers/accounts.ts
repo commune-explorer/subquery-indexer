@@ -79,63 +79,18 @@ async function updateAllAccounts(block: SubstrateBlock) {
             , false);
 
         // @ts-ignore
-        const accountAddresses = accountStorageKeys.map(key => encodeAddress(hexToU8a(key).slice(32 + 16)));
-
-        const apiAt = await unsafeApi.at(hash);
-        apiAt.query.system.account.multi(accountAddresses).then(async accountInfos => {
-            let entities: Account[] = [];
-            for (let i = 0; i < accountInfos.length; i++) {
-                const accountInfo = accountInfos[i];
-                const address = accountAddresses[i];
-                const stakedBalance = (await DelegateBalance.getByAccount(address))?.reduce(
-                    (accumulator, delegation) => accumulator + delegation.amount,
-                    ZERO) ?? ZERO;
-                const freeBalance = accountInfo.data.free.toBigInt();
-
-                const totalBalance = freeBalance + stakedBalance;
-
-                entities.push(
-                    Account.create({
-                        id: address,
-                        address,
-                        createdAt: ZERO,
-                        updatedAt: height,
-                        balance_free: freeBalance,
-                        balance_staked: stakedBalance,
-                        balance_total: totalBalance,
-                    })
-                );
-            }
-            await store.bulkCreate("Account", entities);
-
-        })
-
-        // todo: code below seems to be less memory heavy but the freeBalance bytes are not accurate if reservedBalance is present.
-        // // @ts-ignore
-        // unsafeApi._rpcCore.provider.send('state_queryStorageAt',
-        //     [accountStorageKeys, hash.toString()]
-        //     , false).then(async accountStorages => {
+        // const accountAddresses = accountStorageKeys.map(key => encodeAddress(hexToU8a(key).slice(32 + 16)));
         //
+        // const apiAt = await unsafeApi.at(hash);
+        // apiAt.query.system.account.multi(accountAddresses).then(async accountInfos => {
         //     let entities: Account[] = [];
-        //
-        //     for (const [key, data] of accountStorages[0].changes) {
-        //         const address = encodeAddress(hexToU8a(key).slice(32 + 16));
-        //         const accountInfoBytes = hexToU8a(data);
-        //
-        //         const accountInfo = unsafeApi.registry.createType('AccountInfo', accountInfoBytes);
-        //         const freeBalance = accountInfo.data.free.toBigInt();
-        //         // const dataStart = 16;// free_balance
-        //         // const bytes = accountInfoBytes.slice(dataStart, dataStart + 16);
-        //         //
-        //         // let freeBalance = BigInt(0);
-        //         // // little-endian
-        //         // for (let i = 0; i < bytes.length; i++) {
-        //         //     freeBalance += BigInt(bytes[i]) << (BigInt(i) * BigInt(8));
-        //         // }
-        //
+        //     for (let i = 0; i < accountInfos.length; i++) {
+        //         const accountInfo = accountInfos[i];
+        //         const address = accountAddresses[i];
         //         const stakedBalance = (await DelegateBalance.getByAccount(address))?.reduce(
         //             (accumulator, delegation) => accumulator + delegation.amount,
         //             ZERO) ?? ZERO;
+        //         const freeBalance = accountInfo.data.free.toBigInt();
         //
         //         const totalBalance = freeBalance + stakedBalance;
         //
@@ -151,9 +106,54 @@ async function updateAllAccounts(block: SubstrateBlock) {
         //             })
         //         );
         //     }
-        //
         //     await store.bulkCreate("Account", entities);
+        //
         // })
+
+        // todo: code below seems to be less memory heavy but the freeBalance bytes are not accurate if reservedBalance is present.
+        // @ts-ignore
+        unsafeApi._rpcCore.provider.send('state_queryStorageAt',
+            [accountStorageKeys, hash.toString()]
+            , false).then(async accountStorages => {
+
+            let entities: Account[] = [];
+
+            for (const [key, data] of accountStorages[0].changes) {
+                const address = encodeAddress(hexToU8a(key).slice(32 + 16));
+                const accountInfoBytes = hexToU8a(data);
+
+                // const accountInfo = unsafeApi.registry.createType('FrameSystemAccountInfo', accountInfoBytes);
+                // const freeBalance = accountInfo.data.free.toBigInt();
+                const dataStart = 16;// free_balance
+                const bytes = accountInfoBytes.slice(dataStart, dataStart + 16);
+
+                let freeBalance = BigInt(0);
+                // little-endian
+                for (let i = 0; i < bytes.length; i++) {
+                    freeBalance += BigInt(bytes[i]) << (BigInt(i) * BigInt(8));
+                }
+
+                const stakedBalance = (await DelegateBalance.getByAccount(address))?.reduce(
+                    (accumulator, delegation) => accumulator + delegation.amount,
+                    ZERO) ?? ZERO;
+
+                const totalBalance = freeBalance + stakedBalance;
+
+                entities.push(
+                    Account.create({
+                        id: address,
+                        address,
+                        createdAt: ZERO,
+                        updatedAt: height,
+                        balance_free: freeBalance,
+                        balance_staked: stakedBalance,
+                        balance_total: totalBalance,
+                    })
+                );
+            }
+
+            await store.bulkCreate("Account", entities);
+        })
 
         if (accountStorageKeys.length < pageSize){
             break;
