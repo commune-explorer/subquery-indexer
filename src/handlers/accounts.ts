@@ -30,32 +30,137 @@ export async function fetchAccounts(block: SubstrateBlock): Promise<void> {
 
   logger.info(`Fetching accounts at block #${height}`);
 
-  const accountsIterator = getAccountsIterator(block);
-  let entities: Account[] = [];
+  updateAllAccounts(block).then(() => {
+      logger.info(`Finished fetching accounts at block #${height}`)
+  })
+  // const accountsIterator = getAccountsIterator(block);
+  // let entities: Account[] = [];
+  //
+  // for await (const [address, freeBalance] of accountsIterator) {
+  //   const freeBalanceBigInt = BigInt(freeBalance);
+  //
+  //   const stakedBalance = (await DelegateBalance.getByAccount(address))?.reduce(
+  //       (accumulator, delegation) => accumulator + delegation.amount,
+  //       ZERO) ?? ZERO;
+  //
+  //   const totalBalance = freeBalanceBigInt + stakedBalance;
+  //
+  //   entities.push(
+  //     Account.create({
+  //       id: address,
+  //       address,
+  //       createdAt: ZERO,
+  //       updatedAt: height,
+  //       balance_free: freeBalanceBigInt,
+  //       balance_staked: stakedBalance,
+  //       balance_total: totalBalance,
+  //     })
+  //   );
+  // }
+  //
+  // await store.bulkCreate("Account", entities);
+}
 
-  for await (const [address, freeBalance] of accountsIterator) {
-    const freeBalanceBigInt = BigInt(freeBalance);
+async function updateAllAccounts(block: SubstrateBlock) {
+    if (!unsafeApi) throw new Error("API not initialized");
 
-    const stakedBalance = (await DelegateBalance.getByAccount(address))?.reduce(
-        (accumulator, delegation) => accumulator + delegation.amount,
-        ZERO) ?? ZERO;
+    const height = block.block.header.number.toBigInt();
+    const hash = block.block.header.hash.toString();
+    const pageSize = 1000;
+    let currentPage = "0x";
+    while (true){
+        // @ts-ignore
+        const accountStorageKeys = await unsafeApi._rpcCore.provider.send('state_getKeysPaged', [
+                '0x26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da9',//account
+                pageSize,
+                currentPage,
+                hash.toString()
+            ]
+            , false);
 
-    const totalBalance = freeBalanceBigInt + stakedBalance;
+        // @ts-ignore
+        const accountAddresses = accountStorageKeys.map(key => encodeAddress(hexToU8a(key).slice(32 + 16)));
 
-    entities.push(
-      Account.create({
-        id: address,
-        address,
-        createdAt: ZERO,
-        updatedAt: height,
-        balance_free: freeBalanceBigInt,
-        balance_staked: stakedBalance,
-        balance_total: totalBalance,
-      })
-    );
-  }
+        const apiAt = await unsafeApi.at(hash);
+        apiAt.query.system.account.multi(accountAddresses).then(async accountInfos => {
+            let entities: Account[] = [];
+            for (let i = 0; i < accountInfos.length; i++) {
+                const accountInfo = accountInfos[i];
+                const address = accountAddresses[i];
+                const stakedBalance = (await DelegateBalance.getByAccount(address))?.reduce(
+                    (accumulator, delegation) => accumulator + delegation.amount,
+                    ZERO) ?? ZERO;
+                const freeBalance = accountInfo.data.free.toBigInt();
 
-  await store.bulkCreate("Account", entities);
+                const totalBalance = freeBalance + stakedBalance;
+
+                entities.push(
+                    Account.create({
+                        id: address,
+                        address,
+                        createdAt: ZERO,
+                        updatedAt: height,
+                        balance_free: freeBalance,
+                        balance_staked: stakedBalance,
+                        balance_total: totalBalance,
+                    })
+                );
+            }
+            await store.bulkCreate("Account", entities);
+
+        })
+
+        // todo: code below seems to be less memory heavy but the freeBalance bytes are not accurate if reservedBalance is present.
+        // // @ts-ignore
+        // unsafeApi._rpcCore.provider.send('state_queryStorageAt',
+        //     [accountStorageKeys, hash.toString()]
+        //     , false).then(async accountStorages => {
+        //
+        //     let entities: Account[] = [];
+        //
+        //     for (const [key, data] of accountStorages[0].changes) {
+        //         const address = encodeAddress(hexToU8a(key).slice(32 + 16));
+        //         const accountInfoBytes = hexToU8a(data);
+        //
+        //         const accountInfo = unsafeApi.registry.createType('AccountInfo', accountInfoBytes);
+        //         const freeBalance = accountInfo.data.free.toBigInt();
+        //         // const dataStart = 16;// free_balance
+        //         // const bytes = accountInfoBytes.slice(dataStart, dataStart + 16);
+        //         //
+        //         // let freeBalance = BigInt(0);
+        //         // // little-endian
+        //         // for (let i = 0; i < bytes.length; i++) {
+        //         //     freeBalance += BigInt(bytes[i]) << (BigInt(i) * BigInt(8));
+        //         // }
+        //
+        //         const stakedBalance = (await DelegateBalance.getByAccount(address))?.reduce(
+        //             (accumulator, delegation) => accumulator + delegation.amount,
+        //             ZERO) ?? ZERO;
+        //
+        //         const totalBalance = freeBalance + stakedBalance;
+        //
+        //         entities.push(
+        //             Account.create({
+        //                 id: address,
+        //                 address,
+        //                 createdAt: ZERO,
+        //                 updatedAt: height,
+        //                 balance_free: freeBalance,
+        //                 balance_staked: stakedBalance,
+        //                 balance_total: totalBalance,
+        //             })
+        //         );
+        //     }
+        //
+        //     await store.bulkCreate("Account", entities);
+        // })
+
+        if (accountStorageKeys.length < pageSize){
+            break;
+        }else{
+            currentPage = accountStorageKeys[accountStorageKeys.length - 1];
+        }
+    }
 }
 
 
@@ -63,9 +168,6 @@ async function* getAccountsIterator(block: SubstrateBlock): AsyncGenerator<[stri
   if (!unsafeApi) throw new Error("API not initialized");
 
     const hash = block.block.header.hash.toString();
-    const apiAt = await unsafeApi.at(hash);
-    let startKey = "0x";
-
     const pageSize = 1000;
     // @ts-ignore
     const accountStorageKeys = await unsafeApi._rpcCore.provider.send('state_getKeysPaged', [
@@ -84,17 +186,22 @@ async function* getAccountsIterator(block: SubstrateBlock): AsyncGenerator<[stri
     }
 
     // @ts-ignore
-    const accounts = accountStorageKeys.map(key => {
-        // the storage entry is xxhashAsU8a(prefix, 128) + xxhashAsU8a(method, 128), 256 bits total
-        const offset = 32;
-        const hashLen = 16;
-        return encodeAddress(hexToU8a(`${key}`).subarray(offset+hashLen))//registry.createTypeUnsafe('AccountId32', [hexToU8a(`${key}`).subarray(offset+hashLen)]).toString();
-    });
+    const accountStorages = await unsafeApi._rpcCore.provider.send('state_queryStorageAt',
+        [accountStorageKeys, hash.toString()]
+        , false);
 
-    const accountInfos = await apiAt.query.system.account.multi(accounts);
+    for (const [key, data] of accountStorages[0].changes) {
+        const address = encodeAddress(hexToU8a(key).slice(32+16));
+        const accountInfoBytes = hexToU8a(data);
+        const dataStart = 16;// free_balance
+        const bytes = accountInfoBytes.slice(dataStart, dataStart + 16);
 
-    for (let i = 0; i < accounts.length; i++) {
-        yield [accounts[i], accountInfos[i].data.free.toString()];
+        let freeBalance = BigInt(0);
+        // little-endian
+        for (let i = 0; i < bytes.length; i++) {
+            freeBalance += BigInt(bytes[i]) << (BigInt(i) * BigInt(8));
+        }
+        yield [address, freeBalance.toString()]
     }
 
 }
