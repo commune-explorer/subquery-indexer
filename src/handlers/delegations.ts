@@ -83,31 +83,31 @@ export async function fetchDelegations(block: SubstrateBlock): Promise<void> {
   const apiAt = await unsafeApi.at(hash);
 
   logger.info(`#${block.block.header.number.toNumber()}: fetchDelegations`);
-  const stakeTo = await apiAt.query.subspaceModule.stakeTo.entries();
   const height = block.block.header.number.toNumber();
 
-  const records: DelegateBalance[] = [];
-  logger.info(`#${height}: syncStakedAmount`);
+  apiAt.query.subspaceModule.stakeTo.entries().then(async stakeTo => {
+    const records: DelegateBalance[] = [];
+    logger.info(`#${height}: syncStakedAmount`);
+    for (const [key, value] of stakeTo) {
+      const [account, module] = key.toHuman() as [string, string];
+      const amount = BigInt(value.toString());
 
-  for (const [key, value] of stakeTo) {
-    const [account, module] = key.toHuman() as [string, string];
-    const amount = BigInt(value.toString());
+      if (amount === ZERO) continue;
 
-    if (amount === ZERO) continue;
+      records.push(
+          DelegateBalance.create({
+            id: `${account}-${module}`,
+            netUid: 404,
+            lastUpdate: height,
+            account,
+            module,
+            amount,
+          })
+      );
+    }
 
-    records.push(
-      DelegateBalance.create({
-        id: `${account}-${module}`,
-        netUid: 404,
-        lastUpdate: height,
-        account,
-        module,
-        amount,
-      })
-    );
-  }
-
-  await removeAllDelegateBalanceRecords();
-  await store.bulkCreate("DelegateBalance", records);
+    // await removeAllDelegateBalanceRecords();
+    await store.bulkCreate("DelegateBalance", records);
+  })
 
 }
