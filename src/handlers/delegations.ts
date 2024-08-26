@@ -4,7 +4,6 @@ import {
   DelegateBalance,
   DelegationEvent,
 } from "../types";
-import { initAccount } from "../helpers";
 import { ZERO } from "../utils/consts";
 
 export async function handleStakeAdded(event: SubstrateEvent): Promise<void> {
@@ -44,7 +43,7 @@ const handleDelegation = async (
   });
   await eventRecord.save();
 
-  const id = `${account}-${module}-${netUid}`;
+  const id = `${account}-${module}`;
 
   let balanceRecord = await DelegateBalance.get(id);
   if (!balanceRecord) {
@@ -71,9 +70,11 @@ const handleDelegation = async (
 };
 
 const removeAllDelegateBalanceRecords = async () => {
-  const allRecords = await store.getByFields("DelegateBalance", []);
-  const allIds = allRecords.map(record => record.id);
-  await store.bulkRemove("DelegateBalance", allIds);
+  while (true){
+    const allDelegated = await DelegateBalance.getByFields([])
+    await store.bulkRemove("DelegateBalance", allDelegated.map(delegated => delegated.id))
+    if (allDelegated.length < 100) break;
+  }
 };
 
 export async function fetchDelegations(block: SubstrateBlock): Promise<void> {
@@ -105,8 +106,7 @@ export async function fetchDelegations(block: SubstrateBlock): Promise<void> {
           })
       );
     }
-
-    // await removeAllDelegateBalanceRecords();
+//     await removeAllDelegateBalanceRecords();
     await store.bulkCreate("DelegateBalance", records);
   })
 
