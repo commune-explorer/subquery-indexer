@@ -9,6 +9,33 @@ type Transfer @entity {
   extrinsicId: Int! @index
 }
 
+type Extrinsic @entity {
+  id: ID!
+  module: String!
+  method: String! @index
+
+  blockNumber: BigInt! @index
+  extrinsicId: Int! @index
+
+  tip: BigInt!
+  version: Int!
+
+  signer: String! @index
+  success: Boolean!
+  hash: String! @index
+
+  args: String!
+}
+
+type Event @entity {
+   id: ID!
+   blockNumber: BigInt! @index
+   extrinsicId: Int! @index
+   eventName: String! @index
+   module: String!
+   data: String!
+}
+
 type Subnet @entity {
   id: ID!
 
