@@ -4,6 +4,10 @@
 
 export {Transfer} from "./Transfer"
 
+export {Extrinsic} from "./Extrinsic"
+
+export {Event} from "./Event"
+
 export {Subnet} from "./Subnet"
 
 export {Module} from "./Module"

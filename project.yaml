@@ -113,3 +113,5 @@ dataSources:
           kind: substrate/BlockHandler
           filter:
             modulo: 100
+        - handler: fetchExtrinsics
+          kind: substrate/BlockHandler

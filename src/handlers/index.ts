@@ -1,4 +1,5 @@
 export * from "./accounts";
+export * from "./extrinsics";
 export * from "./balances";
 export * from "./bonds";
 export * from "./delegations";
