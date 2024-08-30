@@ -27,6 +27,20 @@ type Extrinsic @entity {
   args: String!
 }
 
+type Block @entity {
+  id: ID!
+  height: BigInt! @index
+
+  eventCount: Int!
+  extrinsicCount: Int!
+
+  hash: String! @index
+  parentHash: String!
+
+  specVersion: Int!
+  timestamp: Date! @index
+}
+
 type Event @entity {
    id: ID!
    blockNumber: BigInt! @index

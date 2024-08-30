@@ -1,5 +1,5 @@
 import {SubstrateBlock} from "@subql/types";
-import {Extrinsic, Event} from "../types";
+import {Extrinsic, Event, Block} from "../types";
 
 export async function fetchExtrinsics(block: SubstrateBlock): Promise<void> {
 
@@ -16,10 +16,23 @@ const formattedNumber = (num: number) => num < 10 ? `000${num}` : num < 100 ? `0
 async function indexExtrinsicsAndEvents(block: SubstrateBlock) {
     if (!unsafeApi) throw new Error("API not initialized");
 
+
+
     const height = block.block.header.number.toBigInt();
     const blockHeight = block.block.header.number.toString();
     const extrinsics = block.block.extrinsics;
     const events = block.events;
+
+    Block.create({
+        id: blockHeight,
+        height,
+        eventCount: events.length,
+        extrinsicCount: extrinsics.length,
+        timestamp: block.timestamp ?? new Date(),
+        hash: block.hash.toString(),
+        parentHash: block.block.header.parentHash.toString(),
+        specVersion: block.specVersion
+    }).save().then(() => logger.info(`Added block #${height}`))
 
     let eventEntities: Event[] = [];
     for (const [index, event] of events.entries()) {
