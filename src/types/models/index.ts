@@ -6,6 +6,8 @@ export {Transfer} from "./Transfer"
 
 export {Extrinsic} from "./Extrinsic"
 
+export {Block} from "./Block"
+
 export {Event} from "./Event"
 
 export {Subnet} from "./Subnet"
