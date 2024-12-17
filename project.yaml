@@ -65,7 +65,7 @@ dataSources:
         - handler: handleWeightsSet
           kind: substrate/EventHandler
           filter:
-            module: subspaceModule
+            module: subnetEmissionModule
             method: WeightsSet
         # Delegation
         - handler: handleStakeAdded

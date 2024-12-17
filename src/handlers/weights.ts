@@ -16,7 +16,7 @@ export async function handleWeightsSet(event: SubstrateEvent): Promise<void> {
   const apiAt = await unsafeApi.at(hash);
 
   const weights = (
-    await apiAt.query.subspaceModule.weights(netUid, uid)
+    await apiAt.query.subnetEmissionModule.weights(netUid, uid)
   ).toJSON();
 
   const entity = Weight.create({
@@ -56,7 +56,7 @@ export async function syncWeights(block: SubstrateBlock): Promise<void> {
         uid,
         height,
         weights: JSON.stringify(weight),
-      })
+      }),
     );
   }
   store.bulkUpdate("Weight", records);

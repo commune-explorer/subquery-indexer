@@ -40,7 +40,7 @@ export async function handleNetworkAdded(event: SubstrateEvent): Promise<void> {
 }
 
 export async function handleNetworkRemoved(
-  event: SubstrateEvent
+  event: SubstrateEvent,
 ): Promise<void> {
   const {
     event: { data },
@@ -73,7 +73,7 @@ export async function fetchSubnetBurns(block: SubstrateBlock): Promise<void> {
         netUid,
         lastUpate: height,
         burn,
-      })
+      }),
     );
   }
 
@@ -92,7 +92,7 @@ interface SubnetGovernanceConfig extends Struct {
 async function fetchSubnetParams(
   netUid: number,
   height: number,
-  apiAt: any
+  apiAt: any,
 ): Promise<void> {
   const name = (
     await apiAt.query.subspaceModule.subnetNames(netUid)
@@ -119,14 +119,12 @@ async function fetchSubnetParams(
   const max_stake = BigInt(0);
   const min_stake = BigInt(0);
   const max_weight_age = BigInt(
-    (await apiAt.query.subspaceModule.maxWeightAge(netUid)).toString()
+    (await apiAt.query.subspaceModule.maxWeightAge(netUid)).toString(),
   );
   const tempo = (
     await apiAt.query.subspaceModule.tempo(netUid)
   ).toJSON() as number;
-  const trust_ratio = (
-    await apiAt.query.subspaceModule.trustRatio(netUid)
-  ).toJSON() as number;
+  const trust_ratio = 0;
   const maximum_set_weight_calls_per_epoch_raw = (
     await apiAt.query.subspaceModule.maximumSetWeightCallsPerEpoch(netUid)
   ).toJSON() as number | null;
@@ -135,13 +133,13 @@ async function fetchSubnetParams(
     maximum_set_weight_calls_per_epoch_raw ?? 1;
   const governanceConfig =
     (await api.query.governanceModule.subnetGovernanceConfig(
-      netUid
+      netUid,
     )) as unknown as SubnetGovernanceConfig;
 
   const vote_mode = governanceConfig.voteMode.toString();
 
   const bonds_ma = BigInt(
-    (await apiAt.query.subspaceModule.bondsMovingAverage(netUid)).toString()
+    (await apiAt.query.subspaceModule.bondsMovingAverage(netUid)).toString(),
   );
 
   const record = SubnetParams.create({
@@ -169,7 +167,7 @@ async function fetchSubnetParams(
 }
 
 export async function fetchAllSubnetParams(
-  block: SubstrateBlock
+  block: SubstrateBlock,
 ): Promise<void> {
   if (!unsafeApi) return;
   const hash = block.block.header.hash.toString();
@@ -185,7 +183,7 @@ export async function fetchAllSubnetParams(
 }
 
 export async function handleSubnetParamsUpdated(
-  event: SubstrateEvent
+  event: SubstrateEvent,
 ): Promise<void> {
   if (!unsafeApi) return;
   const { data } = event.event;
@@ -199,7 +197,7 @@ export async function handleSubnetParamsUpdated(
 async function fetchConsensusVars(
   netUid: number,
   height: number,
-  apiAt: any
+  apiAt: any,
 ): Promise<void> {
   const incentiveRaw = await apiAt.query.subspaceModule.incentive(netUid);
   const incentive = JSON.stringify(incentiveRaw.toJSON());
@@ -223,7 +221,7 @@ async function fetchConsensusVars(
 }
 
 export async function fetchAllConsensusVars(
-  block: SubstrateBlock
+  block: SubstrateBlock,
 ): Promise<void> {
   if (!unsafeApi) return;
   const hash = block.block.header.hash.toString();

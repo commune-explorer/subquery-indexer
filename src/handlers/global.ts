@@ -2,7 +2,7 @@ import { SubstrateBlock, SubstrateEvent } from "@subql/types";
 import { GlobalParams } from "../types";
 
 export async function fetchGlobalParameters(
-  block: SubstrateBlock
+  block: SubstrateBlock,
 ): Promise<void> {
   if (!unsafeApi) return;
   const hash = block.block.header.hash.toString();
@@ -34,17 +34,15 @@ export async function fetchGlobalParameters(
     await apiAt.query.subspaceModule.maxAllowedWeightsGlobal()
   ).toJSON() as number;
   const min_burn = BigInt(
-    (await apiAt.query.subspaceModule.minBurn()).toJSON() as number
+    (await apiAt.query.subspaceModule.minBurn()).toJSON() as number,
   );
   const max_burn = BigInt(
-    (await apiAt.query.subspaceModule.maxBurn()).toJSON() as number
+    (await apiAt.query.subspaceModule.maxBurn()).toJSON() as number,
   );
   const min_stake = BigInt(0);
-  const floor_delegation_fee = (
-    await apiAt.query.subspaceModule.floorDelegationFee()
-  ).toJSON() as number;
+  const floor_delegation_fee = 5;
   const min_weight_stake = BigInt(
-    (await apiAt.query.subspaceModule.minWeightStake()).toJSON() as number
+    (await apiAt.query.subspaceModule.minWeightStake()).toJSON() as number,
   );
   const target_registrations_per_interval = (
     await apiAt.query.subspaceModule.targetRegistrationsPerInterval()
@@ -53,17 +51,17 @@ export async function fetchGlobalParameters(
     await apiAt.query.subspaceModule.targetRegistrationsInterval()
   ).toJSON() as number;
   const adjustment_alpha = BigInt(
-    (await apiAt.query.subspaceModule.adjustmentAlpha()).toJSON() as number
+    (await apiAt.query.subspaceModule.adjustmentAlpha()).toJSON() as number,
   );
   const unit_emission = BigInt(
-    (await apiAt.query.subspaceModule.unitEmission()).toJSON() as number
+    (await apiAt.query.subspaceModule.unitEmission()).toJSON() as number,
   );
   const curator = (await apiAt.query.subspaceModule.curator()).toString();
   const subnet_stake_threshold = (
     await apiAt.query.subspaceModule.subnetStakeThreshold()
   ).toJSON() as number;
   const proposal_cost = BigInt(
-    (await apiAt.query.subspaceModule.proposalCost()).toJSON() as number
+    (await apiAt.query.subspaceModule.proposalCost()).toJSON() as number,
   );
   const proposal_expiration = (
     await apiAt.query.subspaceModule.proposalExpiration()
@@ -74,7 +72,7 @@ export async function fetchGlobalParameters(
   const general_subnet_application_cost = BigInt(
     (
       await apiAt.query.subspaceModule.generalSubnetApplicationCost()
-    ).toJSON() as number
+    ).toJSON() as number,
   );
   const floor_founder_share = (
     await apiAt.query.subspaceModule.floorFounderShare()
@@ -113,7 +111,7 @@ export async function fetchGlobalParameters(
 }
 
 export async function handleGlobalParametersUpdated(
-  event: SubstrateEvent
+  event: SubstrateEvent,
 ): Promise<void> {
   await fetchGlobalParameters(event.block);
 }
